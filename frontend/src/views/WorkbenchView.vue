@@ -52,6 +52,8 @@
           <td class="row-actions">
             <button v-for="action in meta.actions" :key="action" class="link" type="button"
               :data-testid="`action-${row.id}-${action}`" @click="runAction(action, row)">{{ action }}</button>
+            <button v-if="canRegisterReceipt && !isClosedRow(row)" class="link" type="button"
+              :data-testid="`receipt-${row.id}`" @click="registerReceipt(row)">回执核收</button>
           </td>
         </tr>
         <tr v-if="!rows.length">
@@ -85,7 +87,15 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { createEntry, downloadEntries, listEntries, moduleMeta, runAction as applyAction } from '@/api/backend-service'
+import {
+  attachResendReceipt,
+  createEntry,
+  downloadEntries,
+  listEntries,
+  moduleMeta,
+  registerMissingReceipt,
+  runAction as applyAction,
+} from '@/api/backend-service'
 import type { EntryRow } from '@/data/types'
 
 const props = defineProps<{ moduleKey: string }>()
@@ -108,6 +118,15 @@ const stats = computed(() => [
 const statusSummary = computed(() =>
   meta.statuses.map((s) => ({ status: s, count: rows.value.filter((r) => String(r.status) === s).length })),
 )
+
+const canRegisterReceipt = computed(() =>
+  meta.key === 'missing_item' || meta.key === 'resend_order',
+)
+
+const closedStatuses = ['已结清', '已核收', '已停止']
+function isClosedRow(row: EntryRow): boolean {
+  return closedStatuses.includes(String(row.status))
+}
 
 function resetFilters() { filters.value = {}; void reload() }
 
@@ -139,6 +158,26 @@ async function runAction(action: string, row: EntryRow) {
     if (!r.ok) throw new Error(r.message)
     await reload()
   } catch (e) { errorMessage.value = e instanceof Error ? e.message : '操作失败' }
+}
+
+async function registerReceipt(row: EntryRow) {
+  errorMessage.value = ''
+  const ackNo = window.prompt('请输入确认回执号')
+  if (!ackNo) return
+  const rawSegments = window.prompt('请输入本次核收的分段尺号（多个用逗号或顿号分隔）')
+  if (rawSegments === null) return
+  const segments = rawSegments.split(/[,，、]/).map((s) => s.trim()).filter(Boolean)
+  if (!segments.length) {
+    errorMessage.value = '至少需要一个核收分段'
+    return
+  }
+  try {
+    const r = meta.key === 'resend_order'
+      ? await attachResendReceipt(Number(row.id), ackNo.trim(), segments)
+      : await registerMissingReceipt(Number(row.id), ackNo.trim(), segments)
+    if (!r.ok) throw new Error(r.message)
+    await reload()
+  } catch (e) { errorMessage.value = e instanceof Error ? e.message : '回执核收失败' }
 }
 
 async function reload() {

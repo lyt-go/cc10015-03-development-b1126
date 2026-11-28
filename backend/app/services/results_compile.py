@@ -31,6 +31,17 @@ class ResultsCompileService(BaseModuleService):
         if store.is_idempotent(idempotent_key):
             return None, f"动作「{action}」已执行，请勿重复操作"
 
+        # 提交汇编前检查仍未核收的缺件项：全部应到分段实际核收前不允许提交
+        if action == "提交汇编":
+            outstanding = self.outstanding_missing_items(entry_id)
+            if outstanding:
+                detail = "；".join(
+                    f"{item['航次编号']}/{item['资料类别']}/{item['成果名称']}"
+                    f"（{item['提交方']}，缺分段：{'、'.join(item['未核收分段']) or '整项未核收'}）"
+                    for item in outstanding
+                )
+                return None, f"报告仍有{len(outstanding)}项缺件未核收，不能提交：{detail}"
+
         old_status = entry.get("status")
         entry["status"] = target
         entry["pending"] = target in ("汇编中", "需补充")
@@ -39,6 +50,18 @@ class ResultsCompileService(BaseModuleService):
         store.mark_idempotent(idempotent_key)
 
         return entry, f"{self.ENTITY}已{action}"
+
+    def outstanding_missing_items(self, entry_id: int) -> list[dict[str, Any]]:
+        """返回该汇编报告下仍有分段未核收的缺件项（按航次编号关联）。"""
+        entry = store.find(self.MODULE, entry_id)
+        if entry is None:
+            return []
+        from app.services.missing_item import MissingItemService
+
+        checklist = MissingItemService().checklist_for_report(
+            entry_id, cruise=entry.get("航次编号"),
+        )
+        return [item for item in checklist if item["未核收分段"]]
 
     def update_completeness(self, entry_id: int, data_source: str, data_desc: str) -> tuple[dict[str, Any] | None, str]:
         """由数据传输模块联动更新数据完整度。"""

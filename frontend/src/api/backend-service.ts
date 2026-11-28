@@ -65,3 +65,37 @@ export async function fetchSnapshot(key: string): Promise<Record<string, any>> {
   if (!response.ok) throw new Error('跨模块快照读取失败')
   return await response.json()
 }
+
+/** 凭确认回执核收缺件分段（同一回执后端只记一次）。 */
+export async function registerMissingReceipt(
+  itemId: number,
+  ackNo: string,
+  segments: string[],
+): Promise<ActionResult> {
+  const response = await request(`/api/missing_item/${itemId}/receipts`, {
+    method: 'POST',
+    body: JSON.stringify({ ack_no: ackNo, segments }),
+  })
+  if (!response.ok) {
+    const detail = (await response.json().catch(() => ({}))) as { detail?: string }
+    throw new Error(detail.detail ?? '回执核收失败')
+  }
+  return await response.json()
+}
+
+/** 补传工单取得确认回执后核收。 */
+export async function attachResendReceipt(
+  orderId: number,
+  ackNo: string,
+  segments: string[],
+): Promise<ActionResult> {
+  const response = await request(`/api/resend_order/${orderId}/receipts`, {
+    method: 'POST',
+    body: JSON.stringify({ ack_no: ackNo, segments }),
+  })
+  if (!response.ok) {
+    const detail = (await response.json().catch(() => ({}))) as { detail?: string }
+    throw new Error(detail.detail ?? '回执核收失败')
+  }
+  return await response.json()
+}

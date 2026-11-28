@@ -99,6 +99,9 @@ def module_snapshot(module: str) -> dict[str, Any]:
         cross["transfer_complete"] = completed
         cross["transfer_total"] = len(transfer_rows)
         cross["completeness"] = round(completed / len(transfer_rows) * 100, 1) if transfer_rows else 0
+        missing_rows = store.rows("missing_item")
+        cross["outstanding_missing"] = sum(1 for r in missing_rows if r.get("status") != "已结清")
+        cross["cleared_missing"] = sum(1 for r in missing_rows if r.get("status") == "已结清")
     elif module == "track_record":
         station_rows = store.rows("station_deploy")
         cross["station_coords"] = len(station_rows)
@@ -111,6 +114,21 @@ def module_snapshot(module: str) -> dict[str, Any]:
         cross["plan_changed"] = plan_changed
         results_rows = store.rows("results_compile")
         cross["total_results"] = len(results_rows)
+    elif module == "missing_item":
+        missing_rows = store.rows("missing_item")
+        cross["missing_total"] = len(missing_rows)
+        cross["outstanding_missing"] = sum(1 for r in missing_rows if r.get("status") != "已结清")
+        cross["cleared_missing"] = sum(1 for r in missing_rows if r.get("status") == "已结清")
+        cross["open_resend_orders"] = sum(
+            1 for r in store.rows("resend_order") if r.get("status") not in ("已核收", "已停止")
+        )
+    elif module == "resend_order":
+        order_rows = store.rows("resend_order")
+        cross["order_total"] = len(order_rows)
+        cross["active_orders"] = sum(
+            1 for r in order_rows if r.get("status") not in ("已核收", "已停止")
+        )
+        cross["partial_orders"] = sum(1 for r in order_rows if r.get("status") == "部分核收")
     
     base["cross_reference"] = cross
     return base

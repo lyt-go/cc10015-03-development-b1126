@@ -17,9 +17,10 @@ from app.services.analysis_request import AnalysisRequestService
 from app.services.cruise_log import CruiseLogService
 from app.services.instrument_calib import InstrumentCalibService
 from app.services.diving_ops import DivingOpsService
-from app.services.data_transfer import DataTransferService
+from app.services.data_transfer import DataTransferService, ResendOrderService
 from app.services.track_record import TrackRecordService
 from app.services.results_compile import ResultsCompileService
+from app.services.missing_item import MissingItemService
 
 SERVICES: dict[str, BaseModuleService] = {
     "cruise_plan": CruisePlanService(),
@@ -40,6 +41,8 @@ SERVICES: dict[str, BaseModuleService] = {
     "data_transfer": DataTransferService(),
     "track_record": TrackRecordService(),
     "results_compile": ResultsCompileService(),
+    "missing_item": MissingItemService(),
+    "resend_order": ResendOrderService(),
 }
 
 

@@ -5,6 +5,7 @@
 """
 from __future__ import annotations
 
+import copy
 import threading
 import time
 from typing import Any
@@ -26,9 +27,9 @@ class Store:
         self._seed()
 
     def _seed(self) -> None:
-        self._tables = {
-            name: [dict(row) for row in rows] for name, rows in SEED_ROWS.items()
-        }
+        # 深拷贝种子：行内的列表/字典是可变对象，浅拷贝会让运行期修改污染种子，
+        # 导致 reset 后新表仍带着上一轮追加的回执、分段等数据。
+        self._tables = copy.deepcopy(SEED_ROWS)
         self._idempotent_keys.clear()
         self._rollback_log.clear()
 

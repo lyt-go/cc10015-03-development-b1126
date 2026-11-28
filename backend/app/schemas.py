@@ -29,3 +29,13 @@ class EntryPayload(BaseModel):
 class ActionPayload(BaseModel):
     action: str
     remark: str | None = None
+
+
+class ReceiptPayload(BaseModel):
+    ack_no: str
+    segments: list[str] = Field(default_factory=list)
+    source_transfer: int | None = None
+
+
+class ClaimPayload(BaseModel):
+    claimer: str = "补传员"
